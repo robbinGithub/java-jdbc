@@ -16,6 +16,12 @@ public class JdbcUtils {
 	private static String user;
 	private static String password;
 	private static String driverClass;
+	
+	private static String sqlserver_url;
+	private static String sqlserver_user;
+	private static String sqlserver_password;
+	private static String sqlserver_driverClass;
+	
 
 	static{
 		
@@ -26,6 +32,36 @@ public class JdbcUtils {
 		user = ResourceBundle.getBundle("db").getString("user");
 		password = ResourceBundle.getBundle("db").getString("password");
 		driverClass = ResourceBundle.getBundle("db").getString("driverClass");
+		
+		sqlserver_url = ResourceBundle.getBundle("db").getString("sqlserver.url");
+		sqlserver_user = ResourceBundle.getBundle("db").getString("sqlserver.user");
+		sqlserver_password = ResourceBundle.getBundle("db").getString("sqlserver.password");
+		sqlserver_driverClass = ResourceBundle.getBundle("db").getString("sqlserver.driverClass");
+		
+		
+		// Load all Driver
+		
+
+		try {
+			Class.forName("oracle.jdbc.driver.OracleDriver");
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		try {
+			Class.forName("com.mysql.jdbc.Driver");
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+		try {
+			Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
 	}
 	
@@ -42,6 +78,32 @@ public class JdbcUtils {
 		}
 		return null;
 	}
+	
+	
+	// 获得 connection对象 
+	public static Connection getSQLServerConnection(){
+		
+		try {
+			return DriverManager.getConnection(sqlserver_url, sqlserver_user, sqlserver_password);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	
+	public static Connection getConnection(String url, String user, String password){
+		
+		try {
+			return DriverManager.getConnection(url, user, password);
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
 
 	// 装载驱动 
 	private static void loadDriver() {
