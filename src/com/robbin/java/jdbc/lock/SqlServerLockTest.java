@@ -27,7 +27,9 @@ import b.cn.itcast.utils.JdbcUtils;
 public class SqlServerLockTest {
 	
 	/**
-	 * 测试SQLServer 【排他行锁】
+	 * 测试SQLServer 【排他锁】
+	 * 
+	 * SELECT * from crm_account with (NOLOCK) where id = 3 ;
 	 * @throws SQLException 
 	 */
 	@Test
@@ -36,11 +38,51 @@ public class SqlServerLockTest {
 		Connection conn = null;;
 		
 		try {
+			  
+			conn = JdbcUtils.getSQLServerConnection();
+			conn.setAutoCommit(false);
+			QueryRunner runner = new QueryRunner();
+			String sql = "update crm_account with(rowlock, XLOCK)  set name = ?  where id = ? ";
+//			String sql = "update crm_account set name = ?  where id = ? ";
+			runner.update(conn, sql, "SASS21212", 1);
+			
+			conn.commit();
+			
+			System.out.println("update success");
+			
+			// update crm_account SET balance = 8000 where id = 2;
+			
+		} catch (Exception e) {
+			
+			e.printStackTrace();
+			
+		}finally {
+			
+			conn.setAutoCommit(true);
+			
+			if(conn != null){
+				conn.close();
+			}
+		}
+		// id:1, name:robbin, balance:1000.0
+		
+	}
+	
+	/**
+	 * 测试带索引的SQLServer 【共享锁】 
+	 * @throws SQLException 
+	 */
+	@Test
+	public void test_shareLock() throws SQLException {
+		
+		Connection conn = null;;
+		
+		try {
 			
 			conn = JdbcUtils.getSQLServerConnection();
 			conn.setAutoCommit(false);
 			QueryRunner runner = new QueryRunner();
-			String sql = "select * from crm_account with (rowlock) where id = ? ";
+			String sql = "select * from crm_account where id = ? ";
 			Object[]  params = {1};
 			Account account = runner.query(conn, sql, params, new BeanHandler<Account>(Account.class));
 			System.out.println("id:" + account.getId() + ", name:" + account.getName() + ", balance:"+ account.getBalance());
@@ -65,9 +107,8 @@ public class SqlServerLockTest {
 		
 	}
 	
-	
 	/**
-	 * 测试带索引的SQLServer更新锁 【行锁】
+	 * 测试带索引的SQLServer【更新锁】
 	 * @throws SQLException 
 	 */
 	@Test
@@ -81,6 +122,13 @@ public class SqlServerLockTest {
 			conn.setAutoCommit(false);
 			QueryRunner runner = new QueryRunner();
 			String sql = "select * from crm_account with (updlock) where id = ? ";
+			
+			// 指定锁范围
+//			String sql = "select * from crm_account with (rowlock, updlock) where id = ? ";
+			
+			// 不使用索引
+//			String sql = "select * from crm_account with (rowlock, updlock) where name = ? ";
+			
 			Object[]  params = {1};
 			Account account = runner.query(conn, sql, params, new BeanHandler<Account>(Account.class));
 			System.out.println("id:" + account.getId() + ", name:" + account.getName() + ", balance:"+ account.getBalance());
@@ -105,44 +153,60 @@ public class SqlServerLockTest {
 		
 	}
 	
+	
+	
 	/**
-	 * 测试没有索引的SQLServer更新锁   【表 锁】
-	 * @throws SQLException 
+	 * @see https://zhidao.baidu.com/question/365105761816809252.html
 	 */
-	@Test
-	public void test_updateLockNoIndex() throws SQLException {
+	public void test_transaction(){
 		
-		Connection conn = null;;
-		
-		try {
-			
-			conn = JdbcUtils.getSQLServerConnection();
-			conn.setAutoCommit(false);
-			QueryRunner runner = new QueryRunner();
-			String sql = "select * from crm_account with (rowlock, updlock) where name = ? ";
-			Object[]  params = {"robbin"};
-			Account account = runner.query(conn, sql, params, new BeanHandler<Account>(Account.class));
-			System.out.println("id:" + account.getId() + ", name:" + account.getName() + ", balance:"+ account.getBalance());
-			
-			conn.commit();
-			
-			// update crm_account SET balance = 8000 where id = 2;
-			
-		} catch (Exception e) {
-			
-			e.printStackTrace();
-			
-		}finally {
-			
-			conn.setAutoCommit(true);
-			
-			if(conn != null){
-				conn.close();
-			}
-		}
-		// id:1, name:robbin, balance:1000.0
-		
+	/*	
+		SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED 
+		SELECT * FROM table ROWLOCK WHERE id = 1
+		实例：
+
+		--排它锁 
+		--新建两个连接 
+		--在第一个连接中执行以下语句 
+		begin tran 
+		update table1 
+		set A='aa' 
+		where B='b2' 
+		waitfor delay '00:00:30' --等待30秒 
+		commit tran 
+		 
+		--在第二个连接中执行以下语句 
+		begin tran 
+		select * from table1 
+		where B='b2' 
+		commit tran 
+		 
+		--若同时执行上述两个语句，则select查询必须等待update执行完毕才能执行即要等待30秒*/
 	}
+	
+	/**
+	 * 查询数据库上的锁
+	 */
+	public void test_query(){
+		
+		
+	/*	select req_spid
+		,case req_status when 1 then '已授予' when 2 then '正在转换' when 3 then '正在等待' end as req_status
+		,case rsc_type when 1 then 'NULL 资源（未使用）' when 2 then '数据库' when 3 then '文件'
+			when 4 then '索引' when 5 then '表' when 6 then '页' when 7 then '键' 
+			when 8 then '扩展盘区' when 9 then 'RID（行 ID)' when 10 then '应用程序' else '' end rsc_type
+		,coalesce(OBJECT_NAME(rsc_objid),db_name(rsc_dbid)) as [object]
+		,case req_mode when 1 then 'NULL' when 1 then 'Sch-S' when 2 then 'Sch-M' when 3 then 'S' 
+			when 4 then 'U' when 5 then 'X' when 6 then 'IS' when 7 then 'IU' when 8 then 'IX' when 9 then 'SIU' 
+			when 10 then 'SIX' when 11 then 'UIX' when 12 then 'BU' when 13 then 'RangeS_S' when 14 then 'RangeS_U' 
+			when 15 then 'RangeI_N' when 16 then 'RangeI_S' when 17 then 'RangeI_U' when 18 then 'RangeI_X'	
+			when 19 then 'RangeX_S' when 20 then 'RangeX_U' when 21 then 'RangeX_X' else '' end req_mode
+		,rsc_indid as index_id,rsc_text,req_refcnt
+		,case req_ownertype when 1 then '事务' when 2 then '游标' when 3 then '会话' when 4 then 'ExSession' else'' end req_ownertype
+		from sys.syslockinfo WHERE rsc_type<>2*/
+	}
+	
+	
 	
 	public static class Account {
 	
@@ -168,4 +232,6 @@ public class SqlServerLockTest {
 			this.balance = balance;
 		}
 	}
+	
+	
 }
