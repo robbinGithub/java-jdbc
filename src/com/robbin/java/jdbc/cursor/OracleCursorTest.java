@@ -15,9 +15,142 @@ import java.sql.Statement;
  */
 public class OracleCursorTest {
 	
-	private static final String url = "";
-	private static final String user = "";
-	private static final String password = "";
+	private static final String url = "jdbc:oracle:thin:@XXX.19:1521:XXXX";
+	private static final String user = "XXX";
+	private static final String password = "XXXX";
+	
+	
+	/**
+	 * 
+	 *  【测试SQL】
+	 *  select * from CRM_REASON where REASONID ='300'
+	   
+	 *  【查询查看当前cursor状态】
+         select * from v$open_cursor where sql_text like '%select * from CRM_REASON where REASONID%'; 
+        
+	           【查询SQL硬解析、软解析次数】
+        select sql_text,s.PARSE_CALLS,loads,executions from v$sql s
+        where sql_text like 'select * from CRM_REASON where REASONID%'
+        order by 1,2,3,4;
+        
+                      每执行一次SQL,创建一个PreparedStatement,则每次会生成一个Session Cursor
+                      
+                      当某个session第三次执行相同的SQL语句时，则会把该SQL语句的游标信息转移到该session的PGA中。这样，当该session在执行该SQL语句时，会直接从PGA中取出执行计划，从而跳过硬解析的所有步骤。
+        
+	 * 
+	 * Oracle 11g 测试当前打开的游标数
+	 * @param args
+	 * @throws SQLException 
+	 */
+	public static void main(String[] args) throws SQLException {
+		
+		try {
+	        Class.forName("oracle.jdbc.driver.OracleDriver");
+	  }catch(Exception e ){}
+    
+	   Connection myconn=DriverManager.getConnection(url, user, password);
+	
+	  /* Statement stat1=myconn.createStatement();
+	   ResultSet rst1=stat1.executeQuery("select * from v$version");
+	   while(rst1.next())
+	   {
+	       System.out.println(rst1.getString(1));
+	   }*/
+	   
+	   /*rst1=stat1.executeQuery("select distinct sid from v$mystat");
+	
+	   while (rst1.next()){
+	       System.out.println("MY SID IS "+rst1.getString(1));
+	   }*/
+	
+	   PreparedStatement s[]=new PreparedStatement[2000];
+	   PreparedStatement p;
+	   
+	   /**
+	    * OK
+	    */
+//	    p=myconn.prepareStatement("select * from CRM_REASON where REASONID = ?");
+	   
+	   
+	   //ResultSet r[]=new ResultSet[2000];
+	   int i=0;
+	   while(i<10){
+	    //  m[i]=DriverManager.getConnection("jdbc:oracle:thin:@192.168.1.121:1521:G10R2", "maclean", "maclean");
+	      //s[i]=m[i].createStatement();
+	      //m[i].setAutoCommit(false);
+	      //s[i].execute("insert into testjava values(1)");
+		   
+		
+		   /**
+		    * For Test
+		    */
+	       p=myconn.prepareStatement("select * from CRM_REASON where REASONID = ?");
+	       p.setString(1, "ASYPZ" + i);
+		   
+//	       p=myconn.prepareStatement("select * from CRM_REASON where REASONID = 'S900'");
+//	       p.setString(1, "SY" + i);
+	   	
+	   	
+	       p.execute();
+	
+	            try {
+	                Thread.sleep(200);
+	            } catch (InterruptedException ex) {
+//	                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+	            }
+	
+	      i++;
+	      System.out.println(i+" cursor is ok !");
+	      
+          if(p != null)
+          {
+        	  p.close();
+          }
+	   }
+	   
+	   System.out.println("SESSION CURSOR CACHED...");
+	   
+	   // SESSION CURSOR CACHED
+	   i = 0;
+	   while(i<10){
+		    //  m[i]=DriverManager.getConnection("jdbc:oracle:thin:@192.168.1.121:1521:G10R2", "maclean", "maclean");
+		      //s[i]=m[i].createStatement();
+		      //m[i].setAutoCommit(false);
+		      //s[i].execute("insert into testjava values(1)");
+			   
+			
+			   /**
+			    * For Test
+			    */
+		       p=myconn.prepareStatement("select * from CRM_REASON where REASONID = ?");
+		       p.setString(1, "SYP" + i);
+			   
+//		       p=myconn.prepareStatement("select * from CRM_REASON where REASONID = 'S900'");
+//		       p.setString(1, "SY" + i);
+		   	
+		   	
+		       p.execute();
+		
+		            try {
+		                Thread.sleep(200);
+		            } catch (InterruptedException ex) {
+//		                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
+		            }
+		
+		      i++;
+		      System.out.println(i+" cursor is ok !");
+		      
+	          /*if(p != null)
+	          {
+	        	  p.close();
+	          }*/
+		   }
+	   
+	   
+	   
+	   System.out.println("WHILTE OVER!");
+	   
+	}
 	
 	/**
 	 * 以下JAVA代码会打个一个数据库会话，并在循环中不断以prepareStatement对象执行SQL语句，且我们不使用close()方法关闭prepareStatement所打开的游标，实
@@ -31,7 +164,7 @@ public class OracleCursorTest {
 	 * @throws SQLException
 	 * @see http://www.askmaclean.com/archives/about-dynamic-view-open_cursor.html
 	 */
-	public static void main(String[] args) throws SQLException {
+	public static void main2(String[] args) throws SQLException {
           try {
 		        Class.forName("oracle.jdbc.driver.OracleDriver");
 		  }catch(Exception e ){}
@@ -81,6 +214,11 @@ public class OracleCursorTest {
 		            } catch (InterruptedException ex) {
 //		                Logger.getLogger(Main.class.getName()).log(Level.SEVERE, null, ex);
 		            }
+		            
+		           /* if(p != null)
+			          {
+			        	  p.close();
+			          }*/
 		
 		      i++;
 		      System.out.println(i+" cursor is ok !");
